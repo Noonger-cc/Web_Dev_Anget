@@ -1,0 +1,166 @@
+<template>
+  <div class="log-viewer">
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <span>实时日志 - {{ taskId || "全部任务" }}</span>
+          <div>
+            <el-button type="success" @click="connectWS" :disabled="wsConnected"
+              >连接</el-button
+            >
+            <el-button
+              type="danger"
+              @click="disconnectWS"
+              :disabled="!wsConnected"
+              >断开</el-button
+            >
+            <el-button @click="clearLog">清空</el-button>
+          </div>
+        </div>
+      </template>
+      <div class="log-container" ref="logContainer">
+        <div v-for="(log, index) in logs" :key="index" class="log-line">
+          <span class="log-time">{{ log.time }}</span>
+          <span :class="['log-level', log.level]">{{
+            log.level.toUpperCase()
+          }}</span>
+          <span class="log-content">{{ log.message }}</span>
+        </div>
+        <div v-if="logs.length === 0" class="no-log">暂无日志</div>
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { useRoute } from "vue-router";
+import { ElMessage } from "element-plus";
+
+const route = useRoute();
+const taskId = ref(route.query.taskId || "");
+const logs = ref([]);
+const wsConnected = ref(false);
+const logContainer = ref(null);
+let ws = null;
+
+const connectWS = () => {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  const url = `${protocol}//${host}/ws/log${taskId.value ? "?task_id=" + taskId.value : ""}`;
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    wsConnected.value = true;
+    ElMessage.success("WebSocket已连接");
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      logs.value.push(data);
+      nextTick(() => {
+        if (logContainer.value) {
+          logContainer.value.scrollTop = logContainer.value.scrollHeight;
+        }
+      });
+    } catch (err) {
+      logs.value.push({
+        time: new Date().toLocaleTimeString(),
+        level: "info",
+        message: event.data,
+      });
+    }
+  };
+
+  ws.onerror = () => {
+    ElMessage.error("WebSocket连接错误");
+  };
+
+  ws.onclose = () => {
+    wsConnected.value = false;
+    ElMessage.warning("WebSocket已断开");
+  };
+};
+
+const disconnectWS = () => {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+};
+
+const clearLog = () => {
+  logs.value = [];
+};
+
+onMounted(() => {
+  connectWS();
+});
+
+onUnmounted(() => {
+  disconnectWS();
+});
+</script>
+
+<style scoped>
+.log-container {
+  height: 500px;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 10px;
+  font-family: "Consolas", monospace;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.log-line {
+  display: flex;
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+.log-time {
+  color: #888;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+.log-level {
+  width: 60px;
+  margin-right: 10px;
+  text-align: center;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.log-level.info {
+  color: #4fc3f7;
+}
+
+.log-level.warn {
+  color: #ffb74d;
+}
+
+.log-level.error {
+  color: #ef5350;
+}
+
+.log-level.success {
+  color: #66bb6a;
+}
+
+.log-content {
+  flex: 1;
+  word-break: break-all;
+}
+
+.no-log {
+  text-align: center;
+  color: #666;
+  padding-top: 200px;
+}
+</style>
