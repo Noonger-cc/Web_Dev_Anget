@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -137,7 +136,7 @@ func CreateTask(c *gin.Context) {
 	go func() {
 		models.DB.Model(&task).Update("status", "running")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		_, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		reqBody, _ := json.Marshal(map[string]interface{}{
@@ -148,7 +147,7 @@ func CreateTask(c *gin.Context) {
 			"client_ids": req.ClientIDs,
 		})
 
-		resp, err := agentClient.Post("http://agent-py:8000/execute", "application/json", bytes.NewBuffer(reqBody))
+		resp, err := agentClient.Post("http://localhost:8001/execute", "application/json", bytes.NewBuffer(reqBody))
 		if err != nil {
 			models.DB.Model(&task).Updates(map[string]interface{}{"status": "failed", "result": err.Error()})
 			return
@@ -253,4 +252,67 @@ func BroadcastLog(message string) {
 			"message": message,
 		})
 	}
+}
+
+func SshConnect(c *gin.Context) {
+	var req struct {
+		HostID uint `json:"host_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	var host models.Host
+	if err := models.DB.First(&host, req.HostID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "主机不存在"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "连接成功"})
+}
+
+func SshExecute(c *gin.Context) {
+	var req struct {
+		HostID  uint   `json:"host_id"`
+		Command string `json:"command"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "参数错误"})
+		return
+	}
+
+	var host models.Host
+	if err := models.DB.First(&host, req.HostID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "主机不存在"})
+		return
+	}
+
+	result, err := executeCommand(host, req.Command)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "output": result})
+}
+
+func executeCommand(host models.Host, command string) (string, error) {
+	reqBody, _ := json.Marshal(map[string]interface{}{
+		"host":       host.Host,
+		"port":       host.Port,
+		"username":   host.Username,
+		"auth_type":  host.AuthType,
+		"credential": host.Credential,
+		"command":    command,
+	})
+
+	result, err := agentClient.Post("http://localhost:8001/ssh-execute", "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", err
+	}
+	defer result.Body.Close()
+
+	body, _ := io.ReadAll(result.Body)
+	return string(body), nil
 }

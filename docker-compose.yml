@@ -4,7 +4,7 @@ services:
   web:
     build: ./web
     ports:
-      - "80:80"
+      - "5173:5173"
     depends_on:
       - server-go
 
@@ -20,6 +20,6 @@ services:
   agent-py:
     build: ./agent-py
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./agent-py:/app

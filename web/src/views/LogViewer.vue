@@ -6,7 +6,7 @@
           <span>实时日志 - {{ taskId || "全部任务" }}</span>
           <div>
             <el-button type="success" @click="connectWS" :disabled="wsConnected"
-              >连接</el-button
+              >重连</el-button
             >
             <el-button
               type="danger"
@@ -42,7 +42,11 @@ const taskId = ref(route.query.taskId || "");
 const logs = ref([]);
 const wsConnected = ref(false);
 const logContainer = ref(null);
+const maxLogs = 1000;
 let ws = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+let reconnectTimer = null;
 
 const connectWS = () => {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -53,6 +57,7 @@ const connectWS = () => {
 
   ws.onopen = () => {
     wsConnected.value = true;
+    reconnectAttempts = 0; // 重置重连计数
     ElMessage.success("WebSocket已连接");
   };
 
@@ -60,6 +65,10 @@ const connectWS = () => {
     try {
       const data = JSON.parse(event.data);
       logs.value.push(data);
+      // 限制日志数量，超出移除旧日志
+      if (logs.value.length > maxLogs) {
+        logs.value = logs.value.slice(-maxLogs);
+      }
       nextTick(() => {
         if (logContainer.value) {
           logContainer.value.scrollTop = logContainer.value.scrollHeight;
@@ -81,6 +90,14 @@ const connectWS = () => {
   ws.onclose = () => {
     wsConnected.value = false;
     ElMessage.warning("WebSocket已断开");
+    // 自动重连（指数退避）
+    if (reconnectAttempts < maxReconnectAttempts) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      reconnectAttempts++;
+      reconnectTimer = setTimeout(() => {
+        connectWS();
+      }, delay);
+    }
   };
 };
 

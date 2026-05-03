@@ -8,7 +8,8 @@
         </div>
       </template>
       <el-table :data="tasks" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
+        <el-empty v-if="tasks.length === 0 && !loading" description="暂无任务" />
+        <el-table-column v-else prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="任务名称" />
         <el-table-column prop="exec_type" label="执行方式" width="100">
           <template #default="{ row }">
@@ -80,12 +81,12 @@ const loadTasks = async () => {
 };
 
 const viewLog = (row) => {
-  router.push({ path: "/main/log", query: { taskId: row.id } });
+  router.push({ path: "/main/task-log", query: { taskId: row.id } });
 };
 
 onMounted(() => {
   loadTasks();
-  refreshTimer = setInterval(loadTasks, 10000);
+  refreshTimer = setInterval(loadTasks, 30000);
 });
 
 onUnmounted(() => {

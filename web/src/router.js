@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Login from '../views/Login.vue'
-import Main from '../views/Main.vue'
-import HostManage from '../views/HostManage.vue'
-import TaskCreate from '../views/TaskCreate.vue'
-import TaskList from '../views/TaskList.vue'
-import LogViewer from '../views/LogViewer.vue'
+import Login from './views/Login.vue'
+import Main from './views/Main.vue'
+import HostManage from './views/HostManage.vue'
+import TaskCreate from './views/TaskCreate.vue'
+import TaskList from './views/TaskList.vue'
+import LogViewer from './views/LogViewer.vue'
 
 const routes = [
   {
@@ -36,12 +36,12 @@ const routes = [
         component: TaskCreate
       },
       {
-        path: 'task/list',
+        path: 'tasks',
         name: 'TaskList',
         component: TaskList
       },
       {
-        path: 'log',
+        path: 'task-log',
         name: 'LogViewer',
         component: LogViewer
       }

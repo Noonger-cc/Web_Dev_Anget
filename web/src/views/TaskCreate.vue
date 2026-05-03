@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { getHosts, getClients, createTask } from "../api";
@@ -99,7 +99,37 @@ const taskForm = reactive({
 const rules = {
   name: [{ required: true, message: "请输入任务名称", trigger: "blur" }],
   exec_type: [{ required: true, message: "请选择执行方式", trigger: "change" }],
-  command: [{ required: true, message: "请输入执行命令", trigger: "blur" }],
+  host_ids: [
+    {
+      type: "array",
+      required: true,
+      message: "请选择至少一台主机",
+      trigger: "change",
+      validator: (rule, value, callback) => {
+        if (taskForm.exec_type === "ssh" && (!value || value.length === 0)) {
+          callback(new Error("请选择至少一台主机"));
+        } else {
+          callback();
+        }
+      },
+    },
+  ],
+  client_ids: [
+    {
+      type: "array",
+      required: true,
+      message: "请选择至少一个客户端",
+      trigger: "change",
+      validator: (rule, value, callback) => {
+        if (taskForm.exec_type === "client" && (!value || value.length === 0)) {
+          callback(new Error("请选择至少一个客户端"));
+        } else {
+          callback();
+        }
+      },
+    },
+  ],
+  command: [{ required: true, message: "请输入执行命令", trigger: "change" }],
 };
 
 const loadData = async () => {
@@ -130,7 +160,7 @@ const handleCreate = async () => {
     }
     await createTask(data);
     ElMessage.success("任务创建成功");
-    router.push("/main/task/list");
+    router.push("/main/tasks");
   } catch (err) {
     ElMessage.error(err.message || "创建失败");
   } finally {
@@ -147,4 +177,16 @@ const resetForm = () => {
 onMounted(() => {
   loadData();
 });
+
+// 切换执行方式时清空已选
+watch(
+  () => taskForm.exec_type,
+  (newType) => {
+    if (newType === "ssh") {
+      taskForm.client_ids = [];
+    } else {
+      taskForm.host_ids = [];
+    }
+  },
+);
 </script>

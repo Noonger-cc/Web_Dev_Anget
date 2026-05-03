@@ -43,6 +43,12 @@ func SetupRouter() *gin.Engine {
 			client.POST("/heartbeat", handlers.ClientHeartbeat)
 			client.POST("/send", handlers.SendClientCmd)
 		}
+
+		ssh := api.Group("/ssh")
+		{
+			ssh.POST("/connect", handlers.SshConnect)
+			ssh.POST("/execute", handlers.SshExecute)
+		}
 	}
 
 	r.GET("/ws/log", handlers.WSLog)
