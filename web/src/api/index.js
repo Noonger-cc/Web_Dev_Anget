@@ -18,7 +18,7 @@ api.interceptors.response.use(
   error => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      globalThis.location.href = '/login'
     }
     return Promise.reject(error)
   }
@@ -32,6 +32,13 @@ export const deleteHost = (id) => api.delete(`/host/${id}`)
 export const getTasks = () => api.get('/task/list')
 export const createTask = (data) => api.post('/task/create', data)
 export const getClients = () => api.get('/client/list')
-export const sendClientCmd = (clientId, command) => api.post('/client/send', { client_id: clientId, command })
+export const addClient = (data) => api.post('/client', data)
+export const updateClient = (id, data) => api.put(`/client/${id}`, data)
+export const deleteClient = (id) => api.delete(`/client/${id}`)
+export const sendClientCmd = (clientId, command, taskId) => api.post('/client/send', {
+  client_id: clientId,
+  command,
+  task_id: taskId,
+})
 
 export default api

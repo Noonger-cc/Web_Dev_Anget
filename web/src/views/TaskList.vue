@@ -81,7 +81,7 @@ const loadTasks = async () => {
 };
 
 const viewLog = (row) => {
-  router.push({ path: "/main/task-log", query: { taskId: row.id } });
+  router.push({ name: 'TaskLogDetail', params: { id: row.id } });
 };
 
 onMounted(() => {

@@ -1,8 +1,9 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"langgraph-ops-server/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter() *gin.Engine {
@@ -40,6 +41,9 @@ func SetupRouter() *gin.Engine {
 		client := api.Group("/client")
 		{
 			client.GET("/list", handlers.GetClients)
+			client.POST("", handlers.AddClient)
+			client.PUT("/:id", handlers.UpdateClient)
+			client.DELETE("/:id", handlers.DeleteClient)
 			client.POST("/heartbeat", handlers.ClientHeartbeat)
 			client.POST("/send", handlers.SendClientCmd)
 		}
@@ -52,6 +56,8 @@ func SetupRouter() *gin.Engine {
 	}
 
 	r.GET("/ws/log", handlers.WSLog)
+	r.GET("/ws/client", handlers.ClientWS)
+	r.GET("/ws/cmd", handlers.ClientWS)
 
 	return r
 }

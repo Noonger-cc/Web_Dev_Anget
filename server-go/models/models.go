@@ -1,8 +1,10 @@
 package models
 
 import (
-	"gorm.io/gorm"
+	"time"
+
 	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
@@ -25,21 +27,22 @@ type Host struct {
 }
 
 type Task struct {
-	ID        uint   `gorm:"primaryKey" json:"id"`
-	Name      string `json:"name"`
-	ExecType  string `json:"exec_type"`
-	Command   string `json:"command"`
-	Status    string `json:"status"`
-	Result    string `json:"result"`
-	CreatedAt string `json:"created_at"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `json:"name"`
+	ExecType  string    `json:"exec_type"`
+	Command   string    `json:"command"`
+	Status    string    `json:"status"`
+	Result    string    `json:"result"`
+	Logs      string    `gorm:"type:text" json:"logs"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Client struct {
-	ID        uint   `gorm:"primaryKey" json:"id"`
-	Name      string `json:"name"`
-	Host      string `json:"host"`
-	Status    string `json:"status"`
-	LastHeart string `json:"last_heart"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `json:"name"`
+	Host      string    `json:"host"`
+	Status    string    `json:"status"`
+	LastHeart time.Time `json:"last_heart"`
 }
 
 func InitDB() {

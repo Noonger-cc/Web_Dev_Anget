@@ -21,6 +21,10 @@
             <span class="menu-icon">💻</span>
             <span>主机管理</span>
           </el-menu-item>
+          <el-menu-item index="/main/clients">
+            <span class="menu-icon">🔗</span>
+            <span>客户端管理</span>
+          </el-menu-item>
           <el-menu-item index="/main/task/create">
             <span class="menu-icon">⚡</span>
             <span>创建任务</span>

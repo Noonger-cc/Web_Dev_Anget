@@ -49,8 +49,8 @@ const maxReconnectAttempts = 5;
 let reconnectTimer = null;
 
 const connectWS = () => {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
+  const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = globalThis.location.host;
   const url = `${protocol}//${host}/ws/log${taskId.value ? "?task_id=" + taskId.value : ""}`;
 
   ws = new WebSocket(url);
@@ -64,7 +64,9 @@ const connectWS = () => {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      logs.value.push(data);
+      if (!taskId.value || !data.task_id || Number(data.task_id) === Number(taskId.value)) {
+        logs.value.push(data);
+      }
       // 限制日志数量，超出移除旧日志
       if (logs.value.length > maxLogs) {
         logs.value = logs.value.slice(-maxLogs);
@@ -74,7 +76,7 @@ const connectWS = () => {
           logContainer.value.scrollTop = logContainer.value.scrollHeight;
         }
       });
-    } catch (err) {
+    } catch {
       logs.value.push({
         time: new Date().toLocaleTimeString(),
         level: "info",

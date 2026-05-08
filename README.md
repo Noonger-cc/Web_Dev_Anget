@@ -72,6 +72,7 @@ go run main.go
 
 ## 默认账号
 
+<<<<<<< HEAD
 - 用户名：`admin`
 - 密码：`admin123`
 
@@ -141,3 +142,7 @@ client-go/
 ---
 
 **默认管理员账号：admin / admin123**
+=======
+- 用户名：admin
+- 密码：admin123
+>>>>>>> f46fe33ffcf98448fff937d5ae33a9596a4777c3

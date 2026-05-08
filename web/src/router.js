@@ -5,6 +5,8 @@ import HostManage from './views/HostManage.vue'
 import TaskCreate from './views/TaskCreate.vue'
 import TaskList from './views/TaskList.vue'
 import LogViewer from './views/LogViewer.vue'
+import ClientManage from './views/ClientManage.vue'
+import TaskLogDetail from './views/TaskLogDetail.vue'
 
 const routes = [
   {
@@ -31,6 +33,11 @@ const routes = [
         component: HostManage
       },
       {
+        path: 'clients',
+        name: 'ClientManage',
+        component: ClientManage
+      },
+      {
         path: 'task/create',
         name: 'TaskCreate',
         component: TaskCreate
@@ -39,6 +46,11 @@ const routes = [
         path: 'tasks',
         name: 'TaskList',
         component: TaskList
+      },
+      {
+        path: 'task/detail/:id',
+        name: 'TaskLogDetail',
+        component: TaskLogDetail
       },
       {
         path: 'task-log',
