@@ -44,7 +44,6 @@
 
 <script setup>
 import { ref, nextTick, watch } from "vue";
-import { ElMessage } from "element-plus";
 
 const props = defineProps({
   visible: {
@@ -85,7 +84,7 @@ const appendOutput = (text, type = "output") => {
 
 const connect = async () => {
   try {
-    appendOutput(`正在连接 ${host.host}:${host.port}...`, "info");
+    appendOutput(`正在连接 ${props.host.host}:${props.host.port}...`, "info");
     
     const response = await fetch("/api/ssh/connect", {
       method: "POST",
@@ -181,9 +180,14 @@ watch(() => props.visible, (newVal) => {
   display: flex;
   flex-direction: column;
   height: 400px;
+  min-width: 500px;
+  min-height: 250px;
+  max-height: 85vh;
+  max-width: 95vw;
   background: #1e1e1e;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
+  resize: both;
 }
 
 .terminal-header {

@@ -1,21 +1,13 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
 <script setup></script>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 #app {
   font-family: "Microsoft YaHei", sans-serif;
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background: #0a0e27;
 }
 </style>

@@ -2,21 +2,29 @@
   <div class="main-layout">
     <div class="bg-animation"></div>
     <div class="bg-grid"></div>
-    <el-container>
-      <el-aside width="240px">
+    <el-container class="main-container">
+      <el-aside width="240px" class="sidebar">
         <div class="logo">
           <div class="logo-icon">🚀</div>
           <h3>智能运维</h3>
           <p>LangGraph Agent</p>
         </div>
-        <el-menu 
-          :default-active="activeMenu" 
-          router 
+        <el-menu
+          :default-active="activeMenu"
+          router
           class="sidebar-menu"
           active-text-color="#00f3ff"
           background-color="transparent"
           text-color="#8b9eb7"
         >
+          <el-menu-item index="/main/dashboard">
+            <span class="menu-icon">📊</span>
+            <span>仪表盘</span>
+          </el-menu-item>
+          <el-menu-item index="/main/assistant">
+            <span class="menu-icon">🤖</span>
+            <span>AI 助手</span>
+          </el-menu-item>
           <el-menu-item index="/main/hosts">
             <span class="menu-icon">💻</span>
             <span>主机管理</span>
@@ -37,6 +45,22 @@
             <span class="menu-icon">📊</span>
             <span>实时日志</span>
           </el-menu-item>
+          <el-menu-item index="/main/monitor/system">
+            <span class="menu-icon">🖥️</span>
+            <span>系统监控</span>
+          </el-menu-item>
+          <el-menu-item index="/main/monitor/traffic">
+            <span class="menu-icon">🌐</span>
+            <span>流量监控</span>
+          </el-menu-item>
+          <el-menu-item index="/main/alerts">
+            <span class="menu-icon">🔔</span>
+            <span>告警中心</span>
+          </el-menu-item>
+          <el-menu-item index="/main/errors">
+            <span class="menu-icon">⚠️</span>
+            <span>错误历史</span>
+          </el-menu-item>
         </el-menu>
         <div class="logout-section">
           <div class="user-card">
@@ -49,8 +73,8 @@
           </el-button>
         </div>
       </el-aside>
-      <el-container>
-        <el-header>
+      <el-container class="right-container">
+        <el-header class="top-header">
           <div class="header-left">
             <div class="status-dot"></div>
             <h2>LangGraph 智能运维 Agent</h2>
@@ -63,7 +87,7 @@
             </div>
           </div>
         </el-header>
-        <el-main>
+        <el-main class="main-content">
           <router-view />
         </el-main>
       </el-container>
@@ -85,11 +109,11 @@ const activeMenu = computed(() => route.path);
 
 const updateTime = () => {
   const now = new Date();
-  currentTime.value = now.toLocaleTimeString("zh-CN", { 
+  currentTime.value = now.toLocaleTimeString("zh-CN", {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit"
+    second: "2-digit",
   });
 };
 
@@ -111,7 +135,7 @@ onUnmounted(() => {
 
 <style scoped>
 .main-layout {
-  min-height: 100vh;
+  height: 100vh;
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1729 100%);
@@ -123,7 +147,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     radial-gradient(circle at 20% 50%, rgba(0, 243, 255, 0.08) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(138, 43, 226, 0.06) 0%, transparent 50%),
     radial-gradient(circle at 40% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 40%);
@@ -143,7 +167,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
@@ -151,15 +175,23 @@ onUnmounted(() => {
   z-index: 0;
 }
 
-.el-aside {
-  background: linear-gradient(180deg, 
-    rgba(10, 14, 39, 0.95) 0%, 
+.main-container {
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar {
+  background: linear-gradient(180deg,
+    rgba(10, 14, 39, 0.95) 0%,
     rgba(26, 31, 58, 0.98) 100%);
   color: #fff;
   position: relative;
-  z-index: 1;
   border-right: 1px solid rgba(0, 243, 255, 0.1);
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .logo {
@@ -167,6 +199,7 @@ onUnmounted(() => {
   text-align: center;
   border-bottom: 1px solid rgba(0, 243, 255, 0.15);
   background: linear-gradient(180deg, rgba(0, 243, 255, 0.08) 0%, transparent 100%);
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -200,41 +233,27 @@ onUnmounted(() => {
   border-right: none;
   background: transparent;
   padding: 10px 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
-.sidebar-menu .el-menu-item {
+.sidebar-menu :deep(.el-menu-item) {
   margin: 5px 12px;
   border-radius: 10px;
   transition: all 0.3s ease;
   position: relative;
 }
 
-.sidebar-menu .el-menu-item:hover {
+.sidebar-menu :deep(.el-menu-item:hover) {
   background: rgba(0, 243, 255, 0.1) !important;
 }
 
-.sidebar-menu .el-menu-item.is-active {
-  background: linear-gradient(90deg, 
-    rgba(0, 243, 255, 0.2) 0%, 
+.sidebar-menu :deep(.el-menu-item.is-active) {
+  background: linear-gradient(90deg,
+    rgba(0, 243, 255, 0.2) 0%,
     rgba(0, 243, 255, 0.05) 100%);
   border-left: 3px solid #00f3ff;
   box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
-}
-
-.sidebar-menu .el-menu-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.sidebar-menu .el-menu-item:hover::before {
-  border-color: rgba(0, 243, 255, 0.3);
 }
 
 .menu-icon {
@@ -242,9 +261,17 @@ onUnmounted(() => {
   font-size: 18px;
 }
 
-.el-header {
-  background: linear-gradient(90deg, 
-    rgba(10, 14, 39, 0.95) 0%, 
+/* ---- right column ---- */
+.right-container {
+  flex-direction: column;
+}
+</style>
+
+<style>
+/* unscoped so el-header / el-main inside right-container pick these up */
+.right-container > .el-header {
+  background: linear-gradient(90deg,
+    rgba(10, 14, 39, 0.95) 0%,
     rgba(26, 31, 58, 0.98) 100%);
   display: flex;
   justify-content: space-between;
@@ -252,22 +279,30 @@ onUnmounted(() => {
   padding: 0 30px;
   border-bottom: 1px solid rgba(0, 243, 255, 0.15);
   position: relative;
-  z-index: 1;
+  height: 60px;
+  flex-shrink: 0;
 }
 
-.el-header::after {
+.right-container > .el-header::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
+  background: linear-gradient(90deg,
+    transparent 0%,
     rgba(0, 243, 255, 0.5) 20%,
     rgba(0, 243, 255, 0.8) 50%,
     rgba(0, 243, 255, 0.5) 80%,
     transparent 100%);
+}
+
+.right-container > .el-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 25px;
+  background: transparent;
 }
 
 .header-left {
@@ -282,21 +317,22 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #00f3ff;
   box-shadow: 0 0 10px #00f3ff, 0 0 20px rgba(0, 243, 255, 0.5);
-  animation: statusPulse 2s ease-in-out infinite;
+  animation: statusPulse2 2s ease-in-out infinite;
 }
 
-@keyframes statusPulse {
+@keyframes statusPulse2 {
   0%, 100% { box-shadow: 0 0 10px #00f3ff, 0 0 20px rgba(0, 243, 255, 0.5); }
   50% { box-shadow: 0 0 20px #00f3ff, 0 0 40px rgba(0, 243, 255, 0.7); }
 }
 
-.el-header h2 {
+.top-header h2 {
   margin: 0;
   font-size: 20px;
   color: #00f3ff;
   font-weight: 600;
   letter-spacing: 1px;
   text-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+  line-height: 60px;
 }
 
 .header-right {
@@ -328,19 +364,12 @@ onUnmounted(() => {
   animation: none;
 }
 
-.el-main {
-  padding: 25px;
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
-
+/* ---- logout section at sidebar bottom ---- */
 .logout-section {
   padding: 20px;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
   border-top: 1px solid rgba(0, 243, 255, 0.1);
+  flex-shrink: 0;
+  background: rgba(10, 14, 39, 0.5);
 }
 
 .user-card {

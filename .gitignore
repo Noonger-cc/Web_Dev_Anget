@@ -8,4 +8,5 @@ dist/
 *.db
 __pycache__/
 *.py[cod]
+*.exe
 go.sum

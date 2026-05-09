@@ -1,274 +1,207 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-import uvicorn
-import subprocess
+"""FastAPI entry point for the LangGraph Ops Agent — with SSE streaming."""
+
+import asyncio
+import json
+import logging
 import time
-import paramiko
-from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, AIMessage
+from typing import Optional
 
-app = FastAPI(title="LangGraph Ops Agent")
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
-# LangGraph 状态定义
-class TaskState:
-    def __init__(self):
-        self.task_id: int = 0
-        self.exec_type: str = ""
-        self.command: str = ""
-        self.host_ids: Optional[List[int]] = None
-        self.client_ids: Optional[List[int]] = None
-        self.host_info: Optional[Dict[str, Any]] = None
-        self.logs: List[str] = []
-        self.result: str = ""
-        self.status: str = "pending"
+from agent_graph import agent_graph, AgentState
 
-class ExecuteRequest(BaseModel):
-    task_id: int
-    exec_type: str
-    command: str
-    host_ids: Optional[List[int]] = None
-    client_ids: Optional[List[int]] = None
-    host_info: Optional[Dict[str, Any]] = None
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("agent-api")
 
-class ExecuteResponse(BaseModel):
-    task_id: int
-    status: str
-    result: str
-    logs: List[str]
+app = FastAPI(title="LangGraph Ops Agent API", version="3.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
+class AgentRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+    thread_id: Optional[str] = None
+
 
 class SshExecuteRequest(BaseModel):
     host: str
-    port: int
+    port: int = 22
     username: str
-    auth_type: str
+    auth_type: str = "password"
     credential: str
     command: str
 
-# LangGraph 节点函数
-def parse_task(state: TaskState) -> TaskState:
-    """解析任务参数"""
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 开始解析任务 {state.task_id}")
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 执行类型: {state.exec_type}")
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 命令: {state.command}")
-    state.status = "parsing"
-    return state
+# ---------------------------------------------------------------------------
+# SSE Helper
+# ---------------------------------------------------------------------------
+def sse_event(event_type: str, data: dict) -> str:
+    return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
 
-def execute_ssh(state: TaskState) -> TaskState:
-    """SSH 执行任务"""
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 开始SSH执行")
-    try:
-        if not state.host_info:
-            raise Exception("缺少主机信息")
-
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        host = state.host_info.get("host")
-        port = state.host_info.get("port", 22)
-        username = state.host_info.get("username")
-        auth_type = state.host_info.get("auth_type")
-        credential = state.host_info.get("credential")
-
-        if auth_type == "password":
-            ssh.connect(host, port=port, username=username, password=credential, timeout=10)
-        else:
-            # 密钥认证
-            key = paramiko.RSAKey.from_private_key_file(credential)
-            ssh.connect(host, port=port, username=username, pkey=key, timeout=10)
-
-        stdin, stdout, stderr = ssh.exec_command(state.command, timeout=30)
-
-        output = stdout.read().decode().strip()
-        error = stderr.read().decode().strip()
-
-        if output:
-            state.logs.append(f"[{time.strftime('%H:%M:%S')}] SSH输出: {output}")
-        if error:
-            state.logs.append(f"[{time.strftime('%H:%M:%S')}] SSH错误: {error}")
-
-        state.result = output if output else "SSH执行完成"
-        if error:
-            state.result += f"\n错误: {error}"
-
-        state.status = "success"
-        ssh.close()
-
-    except Exception as e:
-        state.logs.append(f"[{time.strftime('%H:%M:%S')}] SSH执行错误: {str(e)}")
-        state.result = f"SSH执行失败: {str(e)}"
-        state.status = "failed"
-
-    return state
-
-def execute_local(state: TaskState) -> TaskState:
-    """本地执行任务"""
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 开始本地执行")
-    try:
-        result = subprocess.run(
-            state.command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
-
-        if stdout:
-            state.logs.append(f"[{time.strftime('%H:%M:%S')}] 输出: {stdout}")
-        if stderr:
-            state.logs.append(f"[{time.strftime('%H:%M:%S')}] 错误: {stderr}")
-
-        state.result = stdout if stdout else "命令执行完成"
-        if stderr:
-            state.result += f"\n错误: {stderr}"
-
-        state.status = "success"
-
-    except subprocess.TimeoutExpired:
-        state.logs.append(f"[{time.strftime('%H:%M:%S')}] 执行超时")
-        state.result = "执行超时"
-        state.status = "failed"
-    except Exception as e:
-        state.logs.append(f"[{time.strftime('%H:%M:%S')}] 执行错误: {str(e)}")
-        state.result = str(e)
-        state.status = "failed"
-
-    return state
-
-def collect_result(state: TaskState) -> TaskState:
-    """收集执行结果"""
-    state.logs.append(f"[{time.strftime('%H:%M:%S')}] 任务执行完成，状态: {state.status}")
-    return state
-
-# 路由函数
-def should_execute_ssh(state: TaskState) -> str:
-    """决定是否使用SSH执行"""
-    return "ssh" if state.exec_type == "ssh" and state.host_info else "local"
-
-def should_execute_client(state: TaskState) -> str:
-    """决定是否使用客户端执行"""
-    return "client" if state.exec_type == "client" and state.client_ids else "local"
-
-# 创建工作流图
-workflow = StateGraph(TaskState)
-
-# 添加节点
-workflow.add_node("parse_task", parse_task)
-workflow.add_node("execute_ssh", execute_ssh)
-workflow.add_node("execute_local", execute_local)
-workflow.add_node("collect_result", collect_result)
-
-# 设置入口
-workflow.set_entry_point("parse_task")
-
-# 添加边
-workflow.add_conditional_edges(
-    "parse_task",
-    should_execute_ssh,
-    {
-        "ssh": "execute_ssh",
-        "local": "execute_local"
-    }
-)
-
-workflow.add_edge("execute_ssh", "collect_result")
-workflow.add_edge("execute_local", "collect_result")
-workflow.add_edge("collect_result", END)
-
-# 编译图
-app_graph = workflow.compile()
-
-@app.post("/execute", response_model=ExecuteResponse)
-async def execute_task(req: ExecuteRequest):
-    # 初始化状态
-    initial_state = TaskState()
-    initial_state.task_id = req.task_id
-    initial_state.exec_type = req.exec_type
-    initial_state.command = req.command
-    initial_state.host_ids = req.host_ids
-    initial_state.client_ids = req.client_ids
-    initial_state.host_info = req.host_info
-
-    # 运行工作流
-    try:
-        final_state = app_graph.invoke(initial_state)
-
-        return ExecuteResponse(
-            task_id=final_state.task_id,
-            status=final_state.status,
-            result=final_state.result,
-            logs=final_state.logs
-        )
-    except Exception as e:
-        return ExecuteResponse(
-            task_id=req.task_id,
-            status="failed",
-            result=f"工作流执行错误: {str(e)}",
-            logs=[f"[{time.strftime('%H:%M:%S')}] 工作流错误: {str(e)}"]
-        )
-
-@app.post("/ssh-execute")
-async def ssh_execute(req: SshExecuteRequest):
-    # 直接SSH执行，不使用工作流
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        if req.auth_type == "password":
-            ssh.connect(req.host, port=req.port, username=req.username, password=req.credential, timeout=10)
-        else:
-            key = paramiko.RSAKey.from_private_key_file(req.credential)
-            ssh.connect(req.host, port=req.port, username=req.username, pkey=key, timeout=10)
-
-        stdin, stdout, stderr = ssh.exec_command(req.command, timeout=30)
-
-        output = stdout.read().decode().strip()
-        error = stderr.read().decode().strip()
-
-        ssh.close()
-
-        result = output if output else "SSH执行完成"
-        if error:
-            result += f"\n错误: {error}"
-
-        return {"success": True, "output": result}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
-                from io import StringIO
-                key = paramiko.RSAKey.from_private_key(StringIO(req.credential))
-                ssh.connect(
-                    req.host,
-                    port=req.port,
-                    username=req.username,
-                    pkey=key,
-                    timeout=10
-                )
-            
-            stdin, stdout, stderr = ssh.exec_command(req.command, timeout=30)
-            output = stdout.read().decode('utf-8')
-            error = stderr.read().decode('utf-8')
-            ssh.close()
-            
-            if error:
-                return {"success": True, "output": f"{output}\n{error}"}
-            return {"success": True, "output": output}
-        except ImportError:
-            return {"success": False, "message": "paramiko 未安装，请安装: pip install paramiko"}
-        except Exception as e:
-            return {"success": False, "message": str(e)}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
-
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "3.0.0"}
 
+
+@app.post("/agent/chat")
+async def agent_chat(req: AgentRequest):
+    """
+    SSE streaming endpoint for AI agent interaction.
+
+    Streams events:
+      - intent: parsed user intent
+      - plan: execution plan
+      - tool_start: tool name being called
+      - tool_end: tool result
+      - thinking: agent's reasoning
+      - message: intermediate message
+      - done: final report
+    """
+    thread_id = req.thread_id or f"thread-{int(time.time())}"
+
+    async def event_stream():
+        try:
+            initial_state = AgentState(
+                messages=[],
+                user_input=req.message,
+                intent={},
+                plan="",
+                pending_tool_calls=[],
+                observations=[],
+                final_answer="",
+                require_approval=False,
+                knowledge_context=[],
+            )
+
+            config = {"configurable": {"thread_id": thread_id}}
+
+            # Stream events from the compiled graph
+            async for event in agent_graph.astream_events(initial_state, config, version="v2"):
+                kind = event.get("event", "")
+
+                if kind == "on_chat_model_start":
+                    yield sse_event("thinking", {"content": "正在思考..."})
+
+                elif kind == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk", {})
+                    if hasattr(chunk, "content") and chunk.content:
+                        yield sse_event("thinking", {"content": chunk.content})
+
+                elif kind == "on_tool_start":
+                    name = event.get("name", "unknown")
+                    tool_input = event.get("data", {}).get("input", {})
+                    yield sse_event("tool_start", {
+                        "tool": name,
+                        "input": tool_input,
+                    })
+
+                elif kind == "on_tool_end":
+                    name = event.get("name", "unknown")
+                    output = event.get("data", {}).get("output", "")
+                    clean = str(output)[:2000] if output else ""
+                    yield sse_event("tool_end", {
+                        "tool": name,
+                        "output": clean,
+                    })
+
+                elif kind == "on_chain_end":
+                    # Check if it's the final node
+                    output = event.get("data", {}).get("output", {})
+
+                    if isinstance(output, dict) and output.get("final_answer"):
+                        yield sse_event("done", {
+                            "report": output["final_answer"],
+                            "intent": output.get("intent", {}),
+                        })
+                    elif isinstance(output, dict) and "messages" in output:
+                        msgs = output.get("messages", [])
+                        last_text = ""
+                        for m in reversed(msgs):
+                            if hasattr(m, "content") and m.content and not hasattr(m, "tool_calls"):
+                                last_text = str(m.content)[:500]
+                                break
+                        if last_text:
+                            yield sse_event("message", {"content": last_text})
+
+        except Exception as exc:
+            logger.exception("Agent stream error")
+            yield sse_event("error", {"message": str(exc)})
+
+        yield sse_event("stream_end", {"thread_id": thread_id})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/agent/chat-simple")
+async def agent_chat_simple(req: AgentRequest):
+    """Non-streaming version — returns the final answer directly."""
+    try:
+        initial_state = AgentState(
+            messages=[],
+            user_input=req.message,
+            intent={},
+            plan="",
+            pending_tool_calls=[],
+            observations=[],
+            final_answer="",
+            require_approval=False,
+            knowledge_context=[],
+        )
+
+        result = await agent_graph.ainvoke(initial_state)
+
+        return {
+            "success": True,
+            "answer": result.get("final_answer", ""),
+            "intent": result.get("intent", {}),
+            "thread_id": req.thread_id,
+        }
+    except Exception as exc:
+        logger.exception("Agent simple chat error")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/ssh-execute")
+async def ssh_execute_endpoint(req: SshExecuteRequest):
+    """Direct SSH execution — bypasses agent reasoning."""
+    try:
+        from tools.ssh_tools import ssh_exec
+        result_str = await asyncio.to_thread(ssh_exec, req.host, req.command)
+        result = json.loads(result_str)
+        if result.get("success"):
+            return {"success": True, "output": result.get("stdout", "") + ("\n" + result.get("stderr", "") if result.get("stderr") else "")}
+        return {"success": False, "message": result.get("error", "Unknown error")}
+    except Exception as exc:
+        logger.exception("Direct SSH error")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+# ---------------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)

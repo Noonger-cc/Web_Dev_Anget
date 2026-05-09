@@ -24,12 +24,46 @@ func SetupRouter() *gin.Engine {
 	{
 		api.POST("/login", handlers.Login)
 
+		// Agent
+		api.POST("/agent/chat", handlers.AgentProxyChat)
+
+		// Dashboard
+		api.GET("/dashboard/summary", handlers.GetDashboardSummary)
+
 		hosts := api.Group("/host")
 		{
 			hosts.GET("", handlers.GetHosts)
 			hosts.POST("", handlers.AddHost)
 			hosts.PUT("/:id", handlers.UpdateHost)
 			hosts.DELETE("/:id", handlers.DeleteHost)
+			hosts.PUT("/:id/ipmi", handlers.UpdateHostIpmi)
+			hosts.POST("/:id/ipmi/check", handlers.CheckIpmiConnectivity)
+		}
+
+		// Metrics
+		metrics := api.Group("/metrics")
+		{
+			metrics.GET("/latest", handlers.GetLatestMetrics)
+			metrics.GET("/history", handlers.GetMetricsHistory)
+			metrics.GET("/traffic", handlers.GetTrafficMetrics)
+		}
+
+		// Alerts
+		alerts := api.Group("/alerts")
+		{
+			alerts.GET("", handlers.GetAlerts)
+			alerts.POST("/:id/ack", handlers.AckAlert)
+			alerts.POST("/:id/resolve", handlers.ResolveAlert)
+			alerts.GET("/rules", handlers.GetAlertRules)
+			alerts.PUT("/rules/:id", handlers.UpdateAlertRule)
+		}
+
+		// Error history
+		errors := api.Group("/errors")
+		{
+			errors.GET("", handlers.GetErrorHistory)
+			errors.GET("/stats", handlers.GetErrorStats)
+			errors.POST("/:id/resolve", handlers.ResolveError)
 		}
 
 		task := api.Group("/task")

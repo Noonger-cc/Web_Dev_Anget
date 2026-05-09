@@ -63,19 +63,16 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="260">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" type="success" @click="openSsh(row)">
-                <span>🔗</span>
                 SSH
               </el-button>
               <el-button size="small" type="primary" @click="openEditDialog(row)">
-                <span>✏️</span>
                 编辑
               </el-button>
               <el-button size="small" type="danger" @click="handleDelete(row.id)">
-                <span>🗑️</span>
                 删除
               </el-button>
             </div>
@@ -416,17 +413,15 @@ onMounted(() => {
 
 .action-buttons {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .action-buttons .el-button {
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 5px;
+  padding: 5px 10px;
   font-size: 12px;
-}
-
-.action-buttons span {
-  margin-right: 3px;
+  white-space: nowrap;
 }
 
 .tech-dialog :deep(.el-dialog) {

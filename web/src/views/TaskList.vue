@@ -1,15 +1,24 @@
 <template>
   <div class="task-list">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>任务列表</span>
-          <el-button type="primary" @click="loadTasks">刷新</el-button>
+    <div class="page-header">
+      <div class="header-left">
+        <span class="icon">📋</span>
+        <div class="header-text">
+          <h2>任务列表</h2>
+          <p>Task List</p>
         </div>
-      </template>
-      <el-table :data="tasks" border stripe v-loading="loading">
-        <el-empty v-if="tasks.length === 0 && !loading" description="暂无任务" />
-        <el-table-column v-else prop="id" label="ID" width="80" />
+      </div>
+      <el-button type="primary" class="refresh-btn" @click="loadTasks">
+        <span>🔄 刷新</span>
+      </el-button>
+    </div>
+
+    <el-card class="main-card">
+      <el-table :data="tasks" border stripe v-loading="loading" class="tech-table">
+        <template #empty>
+          <el-empty description="暂无任务" />
+        </template>
+        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="任务名称" />
         <el-table-column prop="exec_type" label="执行方式" width="100">
           <template #default="{ row }">
@@ -95,9 +104,96 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.card-header {
+.task-list {
+  color: #e0e6ed;
+}
+
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  background: rgba(10, 14, 39, 0.6);
+  border-radius: 16px;
+  border: 1px solid rgba(0, 243, 255, 0.1);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-left .icon {
+  font-size: 32px;
+}
+
+.header-text h2 {
+  margin: 0;
+  color: #00f3ff;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.header-text p {
+  margin: 0;
+  color: #6b809a;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #00f3ff 0%, #00ff88 100%);
+  border: none;
+  color: #0a0e27;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 243, 255, 0.3);
+}
+
+.main-card {
+  background: rgba(10, 14, 39, 0.7);
+  border: 1px solid rgba(0, 243, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.1), 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.main-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.tech-table :deep(.el-table__header-wrapper) {
+  background: rgba(26, 31, 58, 0.8);
+}
+
+.tech-table :deep(.el-table th) {
+  color: #00f3ff;
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+  background: transparent;
+}
+
+.tech-table :deep(.el-table td) {
+  color: #e0e6ed;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.08);
+  background: transparent;
+}
+
+.tech-table :deep(.el-table__body tr:hover > td) {
+  background: rgba(0, 243, 255, 0.05);
+}
+
+.tech-table :deep(.el-table) {
+  background: transparent;
+}
+
+.tech-table :deep(.el-table__empty-block) {
+  background: transparent;
 }
 </style>

@@ -7,6 +7,12 @@ import TaskList from './views/TaskList.vue'
 import LogViewer from './views/LogViewer.vue'
 import ClientManage from './views/ClientManage.vue'
 import TaskLogDetail from './views/TaskLogDetail.vue'
+import AiAssistant from './views/AiAssistant.vue'
+import Dashboard from './views/Dashboard.vue'
+import SystemMonitor from './views/SystemMonitor.vue'
+import TrafficMonitor from './views/TrafficMonitor.vue'
+import AlertCenter from './views/AlertCenter.vue'
+import ErrorHistory from './views/ErrorHistory.vue'
 
 const routes = [
   {
@@ -25,7 +31,17 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/main/hosts'
+        redirect: '/main/dashboard'
+      },
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: Dashboard
+      },
+      {
+        path: 'assistant',
+        name: 'AiAssistant',
+        component: AiAssistant
       },
       {
         path: 'hosts',
@@ -56,6 +72,26 @@ const routes = [
         path: 'task-log',
         name: 'LogViewer',
         component: LogViewer
+      },
+      {
+        path: 'monitor/system',
+        name: 'SystemMonitor',
+        component: SystemMonitor
+      },
+      {
+        path: 'monitor/traffic',
+        name: 'TrafficMonitor',
+        component: TrafficMonitor
+      },
+      {
+        path: 'alerts',
+        name: 'AlertCenter',
+        component: AlertCenter
+      },
+      {
+        path: 'errors',
+        name: 'ErrorHistory',
+        component: ErrorHistory
       }
     ]
   }
