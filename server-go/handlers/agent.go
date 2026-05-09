@@ -19,6 +19,11 @@ type AgentChatRequest struct {
 	Message        string `json:"message"`
 	ConversationID string `json:"conversation_id"`
 	ThreadID       string `json:"thread_id"`
+	LlmConfig      *struct {
+		ApiKey  string `json:"api_key"`
+		BaseURL string `json:"base_url"`
+		Model   string `json:"model"`
+	} `json:"llm_config,omitempty"`
 }
 
 // AgentProxyChat proxies the AI chat request to the Python agent and streams SSE to the client
@@ -34,11 +39,24 @@ func AgentProxyChat(c *gin.Context) {
 		threadID = fmt.Sprintf("thread-%d", time.Now().UnixNano())
 	}
 
-	// Build request to Python agent
-	body := strings.NewReader(
-		fmt.Sprintf(`{"message":"%s","thread_id":"%s"}`,
-			escapeJSON(req.Message), threadID),
-	)
+	// Build request to Python agent with proper JSON encoding
+	payload := map[string]interface{}{
+		"message":   req.Message,
+		"thread_id": threadID,
+	}
+	if req.LlmConfig != nil {
+		payload["llm_config"] = map[string]string{
+			"api_key":  req.LlmConfig.ApiKey,
+			"base_url": req.LlmConfig.BaseURL,
+			"model":    req.LlmConfig.Model,
+		}
+	}
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	body := strings.NewReader(string(jsonBytes))
 
 	agentReq, err := http.NewRequest("POST", agentBaseURL+"/agent/chat", body)
 	if err != nil {

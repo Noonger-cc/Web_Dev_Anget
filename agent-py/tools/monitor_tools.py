@@ -74,8 +74,9 @@ def query_logs(host: str, service: str = "", lines: int = 100, filter_keyword: s
     if filter_keyword:
         cmd_parts.append(f"grep -i '{filter_keyword}'")
 
+    fallback_svc = service or "system"
     cmd = " | ".join(cmd_parts) if len(cmd_parts) > 1 else cmd_parts[0]
-    cmd += f" || echo 'No logs found for {service or \"system\"}'"
+    cmd += f" || echo 'No logs found for {fallback_svc}'"
 
     from .ssh_tools import ssh_exec
     return ssh_exec(host, cmd)

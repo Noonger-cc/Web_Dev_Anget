@@ -36,6 +36,7 @@ class AgentRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
     thread_id: Optional[str] = None
+    llm_config: Optional[dict] = None  # {api_key, base_url, model}
 
 
 class SshExecuteRequest(BaseModel):
@@ -88,6 +89,7 @@ async def agent_chat(req: AgentRequest):
                 final_answer="",
                 require_approval=False,
                 knowledge_context=[],
+                llm_config=req.llm_config or {},
             )
 
             config = {"configurable": {"thread_id": thread_id}}
@@ -171,6 +173,7 @@ async def agent_chat_simple(req: AgentRequest):
             final_answer="",
             require_approval=False,
             knowledge_context=[],
+            llm_config=req.llm_config or {},
         )
 
         result = await agent_graph.ainvoke(initial_state)

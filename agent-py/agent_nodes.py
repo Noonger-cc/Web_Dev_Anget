@@ -13,7 +13,7 @@ from tools import ALL_TOOLS
 
 logger = logging.getLogger(__name__)
 
-# LLM configuration — set via env vars, defaults to DeepSeek
+# LLM configuration — set via env vars, can be overridden per-request via state["llm_config"]
 LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
@@ -50,17 +50,31 @@ Rules:
 6. Respond in Chinese when the user writes in Chinese."""
 
 
-def _make_llm() -> ChatOpenAI:
+def _make_llm(state: dict = None) -> ChatOpenAI:
+    """Create an LLM instance. Per-request config in state["llm_config"] overrides env vars."""
+    model = LLM_MODEL
+    base_url = LLM_BASE_URL
+    api_key = LLM_API_KEY
+
+    if state and state.get("llm_config"):
+        cfg = state["llm_config"]
+        if cfg.get("api_key"):
+            api_key = cfg["api_key"]
+        if cfg.get("base_url"):
+            base_url = cfg["base_url"]
+        if cfg.get("model"):
+            model = cfg["model"]
+
     return ChatOpenAI(
-        model=LLM_MODEL,
-        base_url=LLM_BASE_URL,
-        api_key=LLM_API_KEY,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
         temperature=LLM_TEMPERATURE,
     )
 
 
-def _make_llm_with_tools() -> ChatOpenAI:
-    llm = _make_llm()
+def _make_llm_with_tools(state: dict = None) -> ChatOpenAI:
+    llm = _make_llm(state)
     # Bind tools as OpenAI-compatible function calls
     tools_schema = []
     for t in ALL_TOOLS:
@@ -90,7 +104,7 @@ async def understand_node(state: dict) -> dict:
         state["intent"] = {"intent": "unknown", "target": "", "description": ""}
         return state
 
-    llm = _make_llm()
+    llm = _make_llm(state)
     prompt = f"""Analyze the following user request and extract intent as JSON.
 Return ONLY valid JSON with these fields:
   intent: one of [diagnose, execute, query, deploy, repair, batch_check, general]
@@ -117,7 +131,7 @@ async def plan_node(state: dict) -> dict:
     intent = state.get("intent", {})
     knowledge = state.get("knowledge_context", [])
 
-    llm = _make_llm()
+    llm = _make_llm(state)
     context = f"Intent: {json.dumps(intent, ensure_ascii=False)}\n"
     if knowledge:
         context += f"Related historical cases: {json.dumps(knowledge, ensure_ascii=False)}\n"
@@ -136,7 +150,7 @@ async def plan_node(state: dict) -> dict:
 
 async def agent_node(state: dict) -> dict:
     """LLM decides next action: call a tool or finish."""
-    llm = _make_llm_with_tools()
+    llm = _make_llm_with_tools(state)
     messages = state.get("messages", [])
 
     if not any(isinstance(m, SystemMessage) for m in messages):
@@ -163,7 +177,7 @@ async def tool_call_node(state: dict) -> dict:
 
 async def observe_node(state: dict) -> dict:
     """LLM reflects on tool results and updates its understanding."""
-    llm = _make_llm()
+    llm = _make_llm(state)
     messages = state.get("messages", [])
 
     observation_prompt = (
@@ -210,7 +224,7 @@ async def human_approve_node(state: dict) -> dict:
 
 async def summarize_node(state: dict) -> dict:
     """LLM generates a comprehensive final report."""
-    llm = _make_llm()
+    llm = _make_llm(state)
     messages = state.get("messages", [])
     intent = state.get("intent", {})
 
@@ -236,7 +250,7 @@ async def summarize_node(state: dict) -> dict:
 
 async def save_knowledge_node(state: dict) -> dict:
     """Extract case learnings and save to knowledge base."""
-    llm = _make_llm()
+    llm = _make_llm(state)
     messages = state.get("messages", [])
 
     prompt = (
@@ -293,8 +307,8 @@ def should_continue(state: dict) -> str:
 def should_continue_after_tool(state: dict) -> str:
     """After tool execution, decide: observe → agent again, or summarize."""
     state["pending_tool_calls"] = []
-    # Go back to agent to let LLM decide next step
-    return "agent"
+    # Route to observe node so LLM can reflect on the tool result
+    return "observe"
 
 
 def should_approve(state: dict) -> str:

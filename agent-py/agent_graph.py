@@ -74,7 +74,7 @@ def create_agent_graph():
         "tool_call",
         should_continue_after_tool,
         {
-            "agent": "agent",
+            "observe": "observe",
         },
     )
 

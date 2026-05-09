@@ -6,7 +6,10 @@
           <span class="status-indicator" :class="{ online: !store.thinking, thinking: store.thinking }"></span>
           <span>LangGraph Agent {{ store.thinking ? '思考中...' : '就绪' }}</span>
         </div>
-        <el-button text @click="store.clear()" class="clear-btn">清空对话</el-button>
+        <div class="header-actions">
+          <el-button text @click="showSettings = true" class="settings-btn" title="LLM 设置">⚙️ 设置</el-button>
+          <el-button text @click="store.clear()" class="clear-btn">清空对话</el-button>
+        </div>
       </div>
 
       <div class="chat-messages" ref="msgContainer">
@@ -70,6 +73,36 @@
       </div>
     </div>
   </div>
+
+    <!-- LLM Settings Dialog -->
+    <el-dialog v-model="showSettings" title="LLM 模型设置" width="480px" class="dark-dialog">
+      <el-form :model="llmSettings" label-width="100px">
+        <el-alert
+          title="如不填写则使用服务端默认配置"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+        <el-form-item label="API Key">
+          <el-input v-model="llmSettings.api_key" type="password" show-password placeholder="sk-..." />
+          <div class="form-hint">支持 OpenAI / DeepSeek 等兼容 API 的 Key</div>
+        </el-form-item>
+        <el-form-item label="Base URL">
+          <el-input v-model="llmSettings.base_url" placeholder="https://api.deepseek.com/v1" />
+          <div class="form-hint">API 地址，留空则使用默认</div>
+        </el-form-item>
+        <el-form-item label="模型名称">
+          <el-input v-model="llmSettings.model" placeholder="deepseek-chat" />
+          <div class="form-hint">如 deepseek-chat / gpt-4o / qwen-plus 等</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSettings = false">取消</el-button>
+        <el-button type="primary" @click="saveSettings">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
@@ -80,6 +113,22 @@ const inputMsg = ref('')
 const msgContainer = ref(null)
 let reader = null
 let abortCtrl = null
+
+// LLM Settings
+const showSettings = ref(false)
+const llmSettings = ref({
+  api_key: localStorage.getItem('llm_api_key') || '',
+  base_url: localStorage.getItem('llm_base_url') || '',
+  model: localStorage.getItem('llm_model') || '',
+})
+
+const saveSettings = () => {
+  localStorage.setItem('llm_api_key', llmSettings.value.api_key)
+  localStorage.setItem('llm_base_url', llmSettings.value.base_url)
+  localStorage.setItem('llm_model', llmSettings.value.model)
+  showSettings.value = false
+  store.addMessage('system', 'LLM 设置已保存 ✅')
+}
 
 const formatTime = (ts) => {
   const d = new Date(ts)
@@ -129,7 +178,12 @@ const send = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: text,
-        thread_id: store.threadId
+        thread_id: store.threadId,
+        llm_config: llmSettings.value.api_key ? {
+          api_key: llmSettings.value.api_key,
+          base_url: llmSettings.value.base_url || undefined,
+          model: llmSettings.value.model || undefined
+        } : undefined
       }),
       signal: abortCtrl.signal
     })
@@ -280,8 +334,27 @@ onUnmounted(() => {
   50% { opacity: 0.4; }
 }
 
-.clear-btn {
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.clear-btn, .settings-btn {
   color: #6b809a;
+}
+
+.settings-btn:hover {
+  color: #00f3ff;
+}
+
+.clear-btn:hover {
+  color: #ff4757;
+}
+
+.form-hint {
+  font-size: 11px;
+  color: #4a5a7a;
+  margin-top: 4px;
 }
 
 .chat-messages {
